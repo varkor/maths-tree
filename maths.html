@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<script src="Omega.js"></script>
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+		<style>
+			*, *::before, *::after {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 40pt;
+				font-family: sans-serif;
+			}
+			.latex {
+				margin: 8px;
+				-webkit-user-select: none;
+				cursor: default;
+			}
+			.latex * {
+				outline: none;
+			}
+			.hidden {
+				visibility: hidden;
+			}
+			.node {
+				display: inline-block;
+				position: relative;
+				vertical-align: middle;
+				padding: 2pt;
+				margin: 6pt;
+				background: hsl(0, 0%, 90%);
+				border: black 1px solid;
+			}
+			.node input[type="text"] {
+				width: 40pt;
+				text-align: center;
+			}
+			.node:not(.value) {
+				padding-bottom: 8pt;
+			}
+			.silent .node {
+				border: none;
+				padding: 0; margin: 0;
+				background: transparent;
+			}
+			.node input[type="text"] {
+				outline: none;
+				border: 1px solid hsl(0, 0%, 80%);
+			}
+			.node input[type="text"]:focus {
+				border: 1px solid hsl(200, 100%, 60%);
+				box-shadow: inset hsla(0, 0%, 0%, 0.1) 0 1px 1px;
+			}
+			.node.value.focused {
+				background: hsl(200, 100%, 60%);
+				border: hsl(200, 100%, 40%) 1px solid;
+			}
+			.silent .node input[type="text"] {
+				background: transparent;
+				border: none;
+				outline: none;
+				font-size: 14pt;
+			}
+			.silent .node:not(.value) {
+				padding-bottom: 10pt;
+			}
+			.silent .node input[type="text"]:focus {
+				box-shadow: none;
+				color: hsl(200, 100%, 40%);
+			}
+			.silent .node.value.focused {
+				background: transparent;
+				border: none
+			}
+			.operation {
+				display: inline-block;
+				vertical-align: middle;
+			}
+			.operation.plus::before {
+				content: "+";
+			}
+			.operation.multiply::before {
+				content: "×";
+			}
+			.operation.power::before {
+				content: "^";
+			}
+			.silent .operation.power {
+				display: none;
+			}
+			.silent .operation.power + .node {
+				margin-bottom: 4pt;
+			}
+			.silent .operation.power + .node input[type="text"] {
+				width: 10pt;
+				font-size: 8pt;
+				margin-left: -8pt;
+			}
+			.editor {
+				display: inline-block;
+				vertical-align: middle;
+			}
+			.result {
+				display: inline-block;
+				vertical-align: middle;
+				font-size: 16pt;
+				color: hsl(200, 100%, 50%);
+			}
+			.result:not(:empty)::before {
+				content: "=";
+				margin-left: 4pt;
+				margin-right: 4pt;
+			}
+			.evaluation {
+				position: absolute;
+				left: 0; bottom: 2pt;
+				font-size: 8pt;
+				text-align: center;
+				width: 100%;
+				text-shadow: hsl(0, 0%, 90%) 0 0 4px;
+				z-index: 0;
+			}
+			.evaluation::before, .evaluation::after {
+				content: "";
+				display: block;
+				position: absolute;
+				height: 4px;
+				bottom: 3.5pt;
+				border-color: hsl(30, 100%, 50%);
+				border-style: solid;
+				border-width: 0;
+				border-bottom-width: 1px;
+				z-index: -1;
+			}
+			.focused > .evaluation::before, .focused > .evaluation::after {
+				border-color: hsl(200, 100%, 50%);
+			}
+			.evaluation:empty::before, .evaluation:empty::after {
+				border-color: hsl(0, 0%, 70%);
+			}
+			.silent .evaluation:empty::before, .silent .evaluation:empty::after {
+				border-color: hsl(0, 0%, 80%);
+			}
+			.evaluation::before {
+				border-left-width: 1px;
+				left: 8pt; right: calc(50% + 20pt);
+			}
+			.evaluation::after {
+				border-right-width: 1px;
+				right: 8pt; left: calc(50% + 20pt);
+			}
+		</style>
+		<script src="maths.js"></script>
+		<script>
+			"use strict";
+			const doc = Ω(document);
+
+			let updateLaTeX;
+
+			window.addEventListener("DOMContentLoaded", () => {
+				let mathsTree = new MathsTree();
+				mathsTree.resolveToValue(5);
+				let result;
+				result = mathsTree.postOperation("*"); mathsTree = result[0];
+				let secondNode = result[1];
+				secondNode.resolveToValue(6);
+				result = result[1].postOperation("*"); mathsTree = result[0];
+				let fourthNode = result[1];
+				fourthNode.resolveToValue(7);
+				result = secondNode.postOperation("+"); mathsTree = result[0];
+				result[1].resolveToValue(10);
+				// result = fourthNode.postOperation("+"); mathsTree = result[0];
+
+				updateLaTeX = mathsTree => {
+					console.log(mathsTree);
+					const evaluatedString = MathsTreeLaTeXRepresentation.evaluatedString(mathsTree);
+					doc.querySelector(`body .result`).clear().append(MathsTreeDOMRepresentation.evaluatedElement(mathsTree));
+					doc.querySelector(`body .latex`).clear().append(ß(`\\[${mathsTreeLaTeXRepresentation(mathsTree)}=${evaluatedString !== "" ? evaluatedString : "\\_"}\\]`)).addClass("hidden");
+					if ("MathJax" in window) {
+						MathJax.Hub.Queue(["Typeset", MathJax.Hub, doc.querySelector(`body .latex`).element]);
+						MathJax.Hub.Queue(() => doc.querySelector(`body .latex`).removeClass("hidden"));
+					}
+				};
+
+				const representation = new MathsTreeDOMRepresentation(mathsTree, () => {
+					updateLaTeX(representation.mathsTree);
+				});
+				doc.querySelector(`body .editor`).append(representation.root);
+				updateLaTeX(mathsTree);
+			});
+		</script>
+	</head>
+	<body>
+		<div class="editor silent"></div>
+		<div class="result"></div>
+		<div class="latex hidden"></div>
+	</body>
+</html>
